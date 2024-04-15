@@ -1,30 +1,54 @@
-chrome.webRequest.onHeadersReceived.addListener(
-    function(details) {
-      // Log the original headers for debugging
-      console.log('Original headers:', details.responseHeaders);
+// Function to encrypt the cookie value
+// Placeholder: replace with your actual encryption algorithm
+function encryptCookieValue(value) {
+    // Implement the encryption logic here
+    // For demo purposes, we'll just prefix the value with 'encrypted_'
+    return 'encrypted_' + value;
+  }
   
-      let modified = false; // Flag to indicate if we modified any cookie
+  // Function to decrypt the cookie value
+  // Placeholder: replace with your actual decryption algorithm
+  function decryptCookieValue(value) {
+    // Implement the decryption logic here
+    // For demo purposes, we'll remove the 'encrypted_' prefix
+    return value.replace('encrypted_', '');
+  }
   
-      // Iterate over the response headers to find and modify Set-Cookie headers
-      let responseHeaders = details.responseHeaders.map(header => {
-        if (header.name.toLowerCase() === 'set-cookie') {
-          // For demonstration, replace the cookie value with "ModifiedCookieValue"
-          // You can replace "ModifiedCookieValue" with any string for testing
-          header.value = header.value.replace(/=(.*?)(;|$)/, '=ModifiedCookieValue;');
-          modified = true; // Set the flag to true since we modified the cookie
-        }
-        return header;
-      });
+  // Listen for changes to cookies
+  chrome.cookies.onChanged.addListener(function(changeInfo) {
+    if (!changeInfo.removed) {
+      const cookie = changeInfo.cookie;
+      const encryptedValue = encryptCookieValue(cookie.value);
   
-      // If any cookie was modified, log the modified headers
-      if (modified) {
-        console.log('Modified headers:', responseHeaders);
+      const newCookie = {
+        url: (cookie.secure ? "https://" : "http://") + cookie.domain + cookie.path,
+        name: cookie.name,
+        value: encryptedValue,
+        domain: cookie.domain,
+        path: cookie.path,
+        secure: cookie.secure,
+        httpOnly: cookie.httpOnly,
+        sameSite: cookie.sameSite
+      };
+  
+      // Check if the cookie is a session cookie or a persistent cookie
+      if (!cookie.session) {
+        newCookie.expirationDate = cookie.expirationDate;
       }
   
-      // Return the modified response headers to be applied
-      return {responseHeaders};
-    },
-    {urls: ["<all_urls>"]}, // Filter for all URLs
-    ["blocking", "responseHeaders"] // Necessary to modify the headers
-  );
+      // Replace the cookie with its encrypted version
+      chrome.cookies.remove({
+        url: newCookie.url,
+        name: cookie.name
+      }, function(details) {
+        chrome.cookies.set(newCookie, function() {
+          if (chrome.runtime.lastError) {
+            console.error('Error setting encrypted cookie:', chrome.runtime.lastError);
+          } else {
+            console.log('Encrypted cookie set:', newCookie);
+          }
+        });
+      });
+    }
+  });
   
