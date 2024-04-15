@@ -1,33 +1,30 @@
-chrome.webRequest.onBeforeRequest.addListener(
-  async function(details) {
-    console.log('Intercepted request:', details);
-
-    // Check if the request is for setting a cookie
-    if (details.method === "POST" && details.type === "xmlhttprequest" && details.url.startsWith("https://") && details.url.includes("/setcookie")) {
-      console.log('Request is for setting a cookie');
-
-      // Modify the cookies as needed
-      var modifiedCookies = [
-        { name: "modifiedCookie1", value: "modifiedValue1", domain: details.url, path: "/" },
-        // Add more modified cookies as needed
-      ];
-
-      console.log('Modified cookies:', modifiedCookies);
-
-      // Store the modified cookies
-      modifiedCookies.forEach(cookie => {
-        chrome.cookies.set(cookie, function(setCookie) {
-          if (chrome.runtime.lastError) {
-            console.error('Error setting cookie:', chrome.runtime.lastError);
-          } else {
-            console.log('Successfully set cookie:', setCookie);
-          }
-        });
+chrome.webRequest.onHeadersReceived.addListener(
+    function(details) {
+      // Log the original headers for debugging
+      console.log('Original headers:', details.responseHeaders);
+  
+      let modified = false; // Flag to indicate if we modified any cookie
+  
+      // Iterate over the response headers to find and modify Set-Cookie headers
+      let responseHeaders = details.responseHeaders.map(header => {
+        if (header.name.toLowerCase() === 'set-cookie') {
+          // For demonstration, replace the cookie value with "ModifiedCookieValue"
+          // You can replace "ModifiedCookieValue" with any string for testing
+          header.value = header.value.replace(/=(.*?)(;|$)/, '=ModifiedCookieValue;');
+          modified = true; // Set the flag to true since we modified the cookie
+        }
+        return header;
       });
-
-      // Resolve the Promise with the modified request
-      return { redirectUrl: "data:," };
-    }
-  },
-  { urls: ["<all_urls>"] }
-);
+  
+      // If any cookie was modified, log the modified headers
+      if (modified) {
+        console.log('Modified headers:', responseHeaders);
+      }
+  
+      // Return the modified response headers to be applied
+      return {responseHeaders};
+    },
+    {urls: ["<all_urls>"]}, // Filter for all URLs
+    ["blocking", "responseHeaders"] // Necessary to modify the headers
+  );
+  
