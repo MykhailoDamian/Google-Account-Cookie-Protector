@@ -3,7 +3,10 @@
     "name": "Secure Cookie Manager",
     "version": "1.0",
     "description": "Encrypts and manages cookies across all websites for enhanced security.",
-    "permissions": ["cookies"],
+    "permissions": [
+      "cookies",
+      "storage"  
+    ],
     "host_permissions": [
       "<all_urls>"
     ],
