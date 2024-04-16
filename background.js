@@ -1,25 +1,13 @@
-// Simple Base64 encoding and decoding functions
-// URL-safe Base64 encoding
-function encode(value) {
-    return btoa(encodeURIComponent(value)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-  }
-  
-  // URL-safe Base64 decoding
-  function decode(value) {
-    value += '=='.slice(0, (4 - value.length % 4) % 4); // Add '=' padding
-    return decodeURIComponent(atob(value.replace(/-/g, '+').replace(/_/g, '/')));
-  }
-  
-  
-  function encryptCookies() {
+// Function to store cookies
+function storeCookies() {
     chrome.cookies.getAll({}, function(cookies) {
-      let encryptedCookies = {};
+      let storedCookies = {};
       cookies.forEach(cookie => {
         if (!cookie.httpOnly) { // Ensure we don't include httpOnly cookies
-          const encryptedValue = encode(cookie.value);
           const key = `${cookie.domain};${cookie.path};${cookie.name}`;
-          encryptedCookies[key] = encryptedValue;
+          storedCookies[key] = cookie.value;
           
+          // Remove the cookie from the browser
           chrome.cookies.remove({
             url: "http" + (cookie.secure ? "s" : "") + "://" + cookie.domain + cookie.path,
             name: cookie.name
@@ -27,49 +15,51 @@ function encode(value) {
         }
       });
   
-      chrome.storage.local.set({encryptedCookies}, function() {
-        console.log('Cookies have been encrypted and stored.');
+      // Store the cookies in local storage
+      chrome.storage.local.set({storedCookies}, function() {
+        console.log('Cookies have been stored.');
       });
     });
   }
-  function decryptCookies() {
-    chrome.storage.local.get(['encryptedCookies'], function(data) {
-      const encryptedCookies = data.encryptedCookies || {};
   
-      for (const key of Object.keys(encryptedCookies)) {
+  function restoreCookies() {
+    chrome.storage.local.get(['storedCookies'], function(data) {
+      const storedCookies = data.storedCookies || {};
+  
+      Object.keys(storedCookies).forEach(key => {
         const [domain, path, name] = key.split(';');
-        const encryptedValue = encryptedCookies[key];
-        const decryptedValue = decode(encryptedValue);
+        const value = storedCookies[key];
   
-        // Determine the correct URL protocol and format
-        const url = `http${domain.startsWith('.') ? 's' : ''}://${domain}${path}`;
-  
-        // Log the cookie details to check for potential issues
-        console.log(`Setting cookie - Name: ${name}, Domain: ${domain}, Path: ${path}, URL: ${url}`);
+        // If the domain starts with a dot, it's a wildcard domain cookie (e.g., .example.com),
+        // and should likely be set with https. If there's no dot, we assume http.
+        const secure = domain.startsWith('.');
+        const urlPrefix = secure ? 'https://' : 'http://';
+        const adjustedDomain = secure ? domain.substring(1) : domain; // Remove leading dot for secure cookies
+        const url = `${urlPrefix}${adjustedDomain}${path}`;
   
         chrome.cookies.set({
           url: url,
           name: name,
-          value: decryptedValue,
-          domain: domain.startsWith('.') ? domain.substring(1) : domain, // Trim leading dot for explicit domain
+          value: value,
+          domain: adjustedDomain, // Set the domain without leading dot
           path: path,
-          secure: domain.startsWith('.'), // Use secure flag for domains that start with a dot
-          // Note: You may need to handle other attributes such as 'httpOnly', 'sameSite', etc.
-        }, function(cookie) {
+          secure: secure, // Set the secure attribute based on the domain
+          // You may also need to include httpOnly, and sameSite if they were set originally
+        }, function() {
           if (chrome.runtime.lastError) {
             console.error(`Error setting cookie named ${name}:`, chrome.runtime.lastError);
           } else {
-            console.log(`Successfully set cookie named ${name}:`, cookie);
+            console.log(`Successfully set cookie named ${name}`);
           }
         });
-      }
+      });
   
-      // Clear the stored encrypted cookies after restoring
-      chrome.storage.local.remove(['encryptedCookies'], function() {
+      // Clear the stored cookies after restoring
+      chrome.storage.local.remove(['storedCookies'], function() {
         if (chrome.runtime.lastError) {
-          console.error('Error clearing encrypted cookies from storage:', chrome.runtime.lastError);
+          console.error('Error clearing stored cookies from storage:', chrome.runtime.lastError);
         } else {
-          console.log('Encrypted cookies have been restored and cleared from storage.');
+          console.log('Stored cookies have been restored and cleared from storage.');
         }
       });
     });
@@ -77,12 +67,12 @@ function encode(value) {
   
   // Listener for messages from the popup
   chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
-    if (request.action === 'encrypt') {
-      encryptCookies();
-      sendResponse({status: 'encryption_started'});
-    } else if (request.action === 'decrypt') {
-      decryptCookies();
-      sendResponse({status: 'decryption_started'});
+    if (request.action === 'store') {
+      storeCookies();
+      sendResponse({status: 'store_started'});
+    } else if (request.action === 'restore') {
+      restoreCookies();
+      sendResponse({status: 'restore_started'});
     }
   });
   
