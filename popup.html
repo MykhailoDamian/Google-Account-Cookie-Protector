@@ -1,16 +1,24 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <link rel="stylesheet" type="text/css" href="popup.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cookie Manager</title>
+    <link rel="stylesheet" href="popup.css">
 </head>
-
 <body>
-  <h1>Cookie Encryption</h1>
-  <button id="endSession">End Session</button>
-  <button id="restoreSession">Restore Session</button>
-  
-
-  <pre id="cookieDisplay"></pre>
-  <script src="popup.js"></script>
+    <div class="container">
+        <img src="images/logo.svg" alt="Extension Logo" class="extension-logo"/>
+        <h1>You are <span class="secured">secured!</span></h1>
+        <label class="switch">
+            <input type="checkbox" id="toggleSwitch" checked>
+            <span class="slider round"></span>
+        </label>
+        <p class="credits">
+            Made by Mykhailo Damian, University of Hertfordshire
+            <img src="images/uni-logo.svg" alt="University Logo" class="uni-logo"/>
+        </p>
+    </div>
+    <script src="popup.js"></script>
 </body>
 </html>
